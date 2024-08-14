@@ -18,7 +18,6 @@ export function Layout() {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 0, sm: 2 },
         }}
       >
         <Box

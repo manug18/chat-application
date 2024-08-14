@@ -10,6 +10,7 @@ export const colors = {
     grey_800: '#C4C7C8',
   },
   white: '#FFFFFF',
+
   black: '#000000',
   blue: {
     blue_50: ' #fbfcfd',
@@ -19,5 +20,8 @@ export const colors = {
     blue_700: '#3E4565',
     blue_800: '#4E5575',
     blue_900: '#0026B6',
+  },
+  skyBlue: {
+    skyBlue_100: '#F6FBFF',
   },
 };
