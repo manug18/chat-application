@@ -1,41 +1,65 @@
 import { Button, Stack, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
 export function MessageBar() {
-  const socket = io('http://localhost:5000'); // Your WebSocket server URL
-
   const [message, setMessage] = useState<string>(''); // Message is a string
   const [messages, setMessages] = useState<string[]>([]);
+  const [stompClient, setStompClient] = useState<Client | null>(null);
 
   useEffect(() => {
-    // Define the callback for handling messages
-    const handleMessage = (msg: string) => {
-      setMessages((prevMessages) => [...prevMessages, msg]);
-    };
+    // Create a SockJS connection to the Spring Boot server
+    const socket = new SockJS('http://localhost:8080/ws');
 
-    // Register the WebSocket event handler
-    socket.on('chat message', handleMessage);
+    // Create a STOMP client over the SockJS connection
+    const client = new Client({
+      webSocketFactory: () => socket as WebSocket,
+      debug: (str) => console.log(str),
+      onConnect: () => {
+        console.log('Connected to WebSocket');
+        // Subscribe to the "/topic/public" endpoint where messages are broadcasted
+        client.subscribe('/topic/public', (message) => {
+          const msg = JSON.parse(message.body);
+          setMessages((prevMessages) => [...prevMessages, msg.content]);
+        });
+      },
+      onStompError: (frame) => {
+        console.error('STOMP error', frame);
+      },
+    });
 
-    // Cleanup function to unregister the event handler and disconnect the socket
+    // Activate the STOMP client
+    client.activate();
+    setStompClient(client);
+
+    // Cleanup on component unmount
     return () => {
-      socket.off('chat message', handleMessage);
-      socket.disconnect(); // Clean up WebSocket connection
+      if (client.connected) {
+        client.deactivate();
+      }
     };
-  }, []); // Empty dependency array means this effect runs once when the component mounts
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim()) {
-      // Prevent sending empty messages
-      socket.emit('chat message', message);
-      setMessage('');
+    if (message.trim() && stompClient?.connected) {
+      // Create a message object to send
+      const msg = { content: message, sender: 'User' }; // Customize sender as needed
+
+      // Send the message to the "/app/chat.sendMessage" endpoint
+      stompClient.publish({
+        destination: '/app/chat.sendMessage',
+        body: JSON.stringify(msg),
+      });
+
+      setMessage(''); // Clear the input field
     }
   };
 
   return (
     <Stack p={2}>
-      <Typography>hekko</Typography>
+      <Typography>Chat</Typography>
       <div>
         <div>
           <ul>
